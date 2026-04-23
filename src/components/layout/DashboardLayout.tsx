@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation, Navigate } from 'react-router-dom'
+import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { PageLoader } from '@/components/ui/Spinner'
 import { cn } from '@/lib/utils'
@@ -24,7 +24,7 @@ const adminLinks = [
 ]
 
 export function DashboardLayout() {
-  const { user, profile, loading } = useAuth()
+  const { loading } = useAuth()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
