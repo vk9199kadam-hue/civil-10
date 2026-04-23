@@ -29,9 +29,10 @@ export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   if (loading) return <PageLoader />
-  if (!user) return <Navigate to="/login" replace />
+  // TEMPORARY: Bypass auth for UI preview
+  // if (!user) return <Navigate to="/login" replace />
 
-  const links = profile?.role === 'admin'
+  const links = true // profile?.role === 'admin'
     ? [...sidebarLinks, { to: '', icon: ChevronLeft, label: '---', exact: false }, ...adminLinks]
     : sidebarLinks
 
