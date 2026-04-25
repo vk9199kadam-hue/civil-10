@@ -131,7 +131,7 @@ export function useFeaturedListings() {
 export function useMyListings() {
   const { user, profile } = useAuth()
   return useQuery({
-    queryKey: queryKeys.listings.byOwner(user?.uid ?? ''),
+    queryKey: [...queryKeys.listings.byOwner(user?.uid ?? ''), profile?.role],
     queryFn: async () => {
       // If admin, show everything
       const q = profile?.role === 'admin' 

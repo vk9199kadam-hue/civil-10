@@ -86,7 +86,7 @@ export function useFeaturedProjects() {
 export function useMyProjects() {
   const { user, profile } = useAuth()
   return useQuery({
-    queryKey: queryKeys.projects.byOwner(user?.uid ?? ''),
+    queryKey: [...queryKeys.projects.byOwner(user?.uid ?? ''), profile?.role],
     queryFn: async () => {
       // If admin, show everything
       const q = profile?.role === 'admin'
