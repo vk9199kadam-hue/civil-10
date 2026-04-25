@@ -84,14 +84,17 @@ export function useFeaturedProjects() {
 }
 
 export function useMyProjects() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   return useQuery({
     queryKey: queryKeys.projects.byOwner(user?.uid ?? ''),
     queryFn: async () => {
-      const q = query(
-        collection(db, 'projects'),
-        where('owner_id', '==', user!.uid)
-      )
+      // If admin, show everything
+      const q = profile?.role === 'admin'
+        ? query(collection(db, 'projects'))
+        : query(
+            collection(db, 'projects'),
+            where('owner_id', '==', user!.uid)
+          )
 
       const querySnapshot = await getDocs(q)
       const data = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Project[]

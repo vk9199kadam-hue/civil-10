@@ -129,14 +129,17 @@ export function useFeaturedListings() {
 }
 
 export function useMyListings() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   return useQuery({
     queryKey: queryKeys.listings.byOwner(user?.uid ?? ''),
     queryFn: async () => {
-      const q = query(
-        collection(db, 'listings'),
-        where('owner_id', '==', user!.uid)
-      )
+      // If admin, show everything
+      const q = profile?.role === 'admin' 
+        ? query(collection(db, 'listings'))
+        : query(
+            collection(db, 'listings'),
+            where('owner_id', '==', user!.uid)
+          )
 
       const querySnapshot = await getDocs(q)
       const data = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }))

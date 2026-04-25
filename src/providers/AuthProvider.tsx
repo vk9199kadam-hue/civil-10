@@ -28,13 +28,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, email?: string | null) => {
     try {
       const docRef = doc(db, 'users', userId)
       const docSnap = await getDoc(docRef)
       
-      if (docSnap.exists()) {
-        setProfile(docSnap.data() as UserProfile)
+      let profileData = docSnap.exists() ? (docSnap.data() as UserProfile) : null
+
+      // HARDCODE ADMIN: Force vk9199kadam@gmail.com to be admin
+      if (email === 'vk9199kadam@gmail.com') {
+        if (!profileData) {
+          // Create a temporary profile if it doesn't exist yet
+          profileData = {
+             id: userId,
+             email: email,
+             full_name: 'Super Admin',
+             role: 'admin',
+             created_at: new Date().toISOString(),
+             updated_at: new Date().toISOString()
+          } as any
+        } else {
+          profileData.role = 'admin'
+        }
+      }
+
+      if (profileData) {
+        setProfile(profileData)
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
@@ -45,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u)
       if (u) {
-        await fetchProfile(u.uid)
+        await fetchProfile(u.uid, u.email)
       } else {
         setProfile(null)
       }
