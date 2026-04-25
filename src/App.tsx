@@ -11,6 +11,7 @@ const ListingDetailPage = lazy(() => import('@/pages/ListingDetailPage').then(m 
 const ProjectDetailPage = lazy(() => import('@/pages/ProjectDetailPage').then(m => ({ default: m.ProjectDetailPage })))
 const LoginPage = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })))
 const SignupPage = lazy(() => import('@/pages/SignupPage').then(m => ({ default: m.SignupPage })))
+const ProjectsPage = lazy(() => import('@/pages/ProjectsPage').then(m => ({ default: m.ProjectsPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 
 // Dashboard pages
@@ -37,7 +38,7 @@ const router = createBrowserRouter([
       { path: 'search', element: <SearchPage /> },
       { path: 'property/:slug', element: <ListingDetailPage /> },
       { path: 'project/:slug', element: <ProjectDetailPage /> },
-      { path: 'projects', element: <SearchPage /> },
+      { path: 'projects', element: <ProjectsPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'signup', element: <SignupPage /> },
       { path: '*', element: <NotFoundPage /> },

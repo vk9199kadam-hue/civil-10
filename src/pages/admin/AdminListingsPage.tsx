@@ -43,7 +43,9 @@ export function AdminListingsPage() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-gray-900 truncate">{listing.title}</span>
-                <Badge variant="custom" className={listing.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}>{listing.status}</Badge>
+                <Badge variant="custom" className={listing.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600 border-red-100'}>
+                  {listing.status || 'No Status'}
+                </Badge>
               </div>
               <p className="text-sm text-gray-500">{listing.locality}, {listing.city} — {formatPrice(listing.price)}</p>
               <p className="text-xs text-gray-400">By {(listing as unknown as { users?: { full_name: string } }).users?.full_name || 'User'} — {getRelativeTime(listing.created_at)}</p>

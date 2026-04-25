@@ -23,13 +23,16 @@ export function useProjects() {
   return useQuery({
     queryKey: queryKeys.projects.list(),
     queryFn: async () => {
-      const q = query(
-        collection(db, 'projects'),
-        orderBy('created_at', 'desc')
-      )
+      const q = query(collection(db, 'projects'))
 
       const querySnapshot = await getDocs(q)
-      return querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Project[]
+      const data = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Project[]
+      
+      return data.sort((a, b) => {
+        const timeA = (a as any).created_at?.toMillis?.() || 0;
+        const timeB = (b as any).created_at?.toMillis?.() || 0;
+        return timeB - timeA;
+      })
     },
   })
 }
@@ -64,13 +67,19 @@ export function useFeaturedProjects() {
     queryFn: async () => {
       const q = query(
         collection(db, 'projects'),
-        where('is_featured', '==', true),
-        orderBy('created_at', 'desc'),
-        limit(6)
+        where('is_featured', '==', true)
       )
 
       const querySnapshot = await getDocs(q)
-      return querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Project[]
+      const data = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Project[]
+      
+      data.sort((a, b) => {
+        const timeA = (a as any).created_at?.toMillis?.() || 0;
+        const timeB = (b as any).created_at?.toMillis?.() || 0;
+        return timeB - timeA;
+      })
+
+      return data.slice(0, 6)
     },
   })
 }
@@ -82,12 +91,18 @@ export function useMyProjects() {
     queryFn: async () => {
       const q = query(
         collection(db, 'projects'),
-        where('owner_id', '==', user!.uid),
-        orderBy('created_at', 'desc')
+        where('owner_id', '==', user!.uid)
       )
 
       const querySnapshot = await getDocs(q)
-      return querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Project[]
+      const data = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Project[]
+      
+      // Sort manually to avoid Firebase index error
+      return data.sort((a, b) => {
+        const timeA = (a as any).created_at?.toMillis?.() || 0;
+        const timeB = (b as any).created_at?.toMillis?.() || 0;
+        return timeB - timeA;
+      })
     },
     enabled: !!user,
   })
@@ -99,11 +114,15 @@ export function useCreateProject() {
 
   return useMutation({
     mutationFn: async (formData: ProjectFormData) => {
+      if (!user?.uid) {
+        throw new Error('You must be logged in to create a project.')
+      }
+
       const slug = generateSlug(formData.name, formData.locality)
       const docData = {
         ...formData,
         slug,
-        owner_id: user!.uid,
+        owner_id: user.uid,
         amenities: formData.amenities,
         specifications: {},
         status: 'upcoming',

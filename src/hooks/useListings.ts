@@ -25,31 +25,39 @@ export function useListings(filters?: ListingFilters) {
   return useQuery({
     queryKey: queryKeys.listings.list(filters as unknown as Record<string, unknown>),
     queryFn: async () => {
-      let q = query(
-        collection(db, 'listings'),
-        where('status', '==', 'active'),
-        orderBy('created_at', 'desc')
-      )
+      let q = query(collection(db, 'listings'))
+      // Note: We remove the strict 'status' == 'active' filter from Firestore 
+      // to handle cases where data might be missing the status field (e.g. after migration).
+      // We will filter in memory instead.
 
       if (filters?.category) q = query(q, where('category', '==', filters.category))
       if (filters?.listing_type) q = query(q, where('listing_type', '==', filters.listing_type))
       if (filters?.city) q = query(q, where('city', '==', filters.city))
       if (filters?.locality) q = query(q, where('locality', '==', filters.locality))
       
-      // Note: Firebase requires composite indexes for multiple filters + orderBy.
-      // Search is also limited (prefix only). 
-      
       const querySnapshot = await getDocs(q)
-      const data = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+      const data = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as any[]
       
-      // Local filtering for price and search (to avoid needing complex indexes immediately)
-      let filtered = data
+      // Filter by status in memory to be more robust
+      let filtered = data.filter(l => 
+        l.status === 'active' || 
+        !l.status || 
+        l.status === '' ||
+        l.status === 'published'
+      )
       if (filters?.price_min) filtered = filtered.filter((l: any) => l.price >= filters.price_min!)
       if (filters?.price_max) filtered = filtered.filter((l: any) => l.price <= filters.price_max!)
       if (filters?.search) {
         const search = filters.search.toLowerCase()
         filtered = filtered.filter((l: any) => l.title.toLowerCase().includes(search))
       }
+
+      // Sort manually to avoid Firebase index error
+      filtered.sort((a: any, b: any) => {
+        const timeA = a.created_at?.toMillis?.() || 0;
+        const timeB = b.created_at?.toMillis?.() || 0;
+        return timeB - timeA;
+      })
 
       return filtered as unknown as PropertyListing[]
     },
@@ -86,14 +94,37 @@ export function useFeaturedListings() {
     queryFn: async () => {
       const q = query(
         collection(db, 'listings'),
-        where('status', '==', 'active'),
-        where('is_featured', '==', true),
-        orderBy('created_at', 'desc'),
-        limit(8)
+        where('is_featured', '==', true)
       )
 
       const querySnapshot = await getDocs(q)
-      return querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as PropertyListing[]
+      let data = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as any[]
+      
+      // If no featured found, try getting any active listings
+      if (data.length === 0) {
+        const anyQ = query(collection(db, 'listings'))
+        const anySnap = await getDocs(anyQ)
+        data = anySnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      }
+
+      // Filter by status in memory to be more robust
+      const filtered = data.filter(l => 
+        l.status === 'active' || 
+        !l.status || 
+        l.status === 'published' || 
+        l.status === ''
+      )
+      
+      // Sort: Featured first, then by date
+      filtered.sort((a: any, b: any) => {
+        if (a.is_featured && !b.is_featured) return -1
+        if (!a.is_featured && b.is_featured) return 1
+        const timeA = a.created_at?.toMillis?.() || 0;
+        const timeB = b.created_at?.toMillis?.() || 0;
+        return timeB - timeA;
+      })
+
+      return filtered.slice(0, 8) as unknown as PropertyListing[]
     },
   })
 }
@@ -105,12 +136,20 @@ export function useMyListings() {
     queryFn: async () => {
       const q = query(
         collection(db, 'listings'),
-        where('owner_id', '==', user!.uid),
-        orderBy('created_at', 'desc')
+        where('owner_id', '==', user!.uid)
       )
 
       const querySnapshot = await getDocs(q)
-      return querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as PropertyListing[]
+      const data = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+      
+      // Sort manually to avoid Firebase index error
+      data.sort((a: any, b: any) => {
+        const timeA = a.created_at?.toMillis?.() || 0;
+        const timeB = b.created_at?.toMillis?.() || 0;
+        return timeB - timeA;
+      })
+
+      return data as unknown as PropertyListing[]
     },
     enabled: !!user,
   })
@@ -122,11 +161,15 @@ export function useCreateListing() {
 
   return useMutation({
     mutationFn: async (formData: ListingFormData) => {
+      if (!user?.uid) {
+        throw new Error('You must be logged in to post a property.')
+      }
+
       const slug = generateSlug(formData.title, formData.locality)
       const docData = {
         ...formData,
         slug,
-        owner_id: user!.uid,
+        owner_id: user.uid,
         view_count: 0,
         status: 'active',
         created_at: serverTimestamp(),

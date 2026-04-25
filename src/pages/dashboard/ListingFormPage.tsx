@@ -64,24 +64,57 @@ export function ListingFormPage() {
     setPublishing(true)
     try {
       data.status = 'active'
-      data.category_specs = data.category_specs || {}
-      const listing = await createListing.mutateAsync(data)
+      window.setTimeout(() => {
+        if (publishing) {
+           toast('Saving is taking a long time. Is your internet connected?', 'error')
+           setPublishing(false)
+        }
+      }, 5000)
 
-      for (let i = 0; i < images.length; i++) {
-        await uploadMedia.mutateAsync({
-          file: images[i],
-          listingId: listing.id,
-          sortOrder: i,
-          isCover: i === 0,
-        })
+      const listing = await Promise.race([
+        createListing.mutateAsync(data),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase took too long to save! Check Database Rules.')), 8000))
+      ]) as any;
+
+      // Try to upload images, but don't fail the whole property if storage is disabled
+      if (images.length > 0) {
+        try {
+          for (let i = 0; i < images.length; i++) {
+            await Promise.race([
+              uploadMedia.mutateAsync({
+                file: images[i],
+                listingId: listing.id,
+                sortOrder: i,
+                isCover: i === 0,
+              }),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Storage upload blocked.')), 3000))
+            ])
+          }
+        } catch (mediaErr: any) {
+          console.error("Storage Error:", mediaErr);
+          toast(`Photo upload failed: ${mediaErr?.message}. Property saved.`, 'error')
+          navigate('/dashboard/listings')
+          setPublishing(false)
+          return
+        }
       }
 
       toast('Property listed successfully!', 'success')
       navigate('/dashboard/listings')
-    } catch {
-      toast('Failed to publish. Please try again.', 'error')
+    } catch (err: any) {
+      toast(err?.message || 'Failed to publish. Please try again.', 'error')
     }
     setPublishing(false)
+  }
+
+  const handleFormError = (errors: any) => {
+    console.log('Form Errors:', errors)
+    const firstError = Object.values(errors)[0] as any
+    if (firstError?.message) {
+      toast(`Please fix: ${firstError.message}`, 'error')
+    } else {
+      toast('Please fill in all required fields correctly.', 'error')
+    }
   }
 
   const onSaveDraft = async () => {
@@ -108,7 +141,8 @@ export function ListingFormPage() {
       <FormStepper steps={STEPS} currentStep={step} />
 
       <FormProvider {...methods}>
-        <form onSubmit={handleSubmit(onPublish)} className="space-y-6">
+        <form onSubmit={handleSubmit(onPublish, handleFormError)} className="space-y-6">
+
           {/* Step 0: Category */}
           {step === 0 && (
             <div className="rounded-xl border bg-white p-6">

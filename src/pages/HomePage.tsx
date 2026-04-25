@@ -2,7 +2,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Search, ArrowRight, Home, Building2, Map, Factory, Hotel, TrendingUp, Shield, Users } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { PropertyGrid } from '@/components/property/PropertyGrid'
-import { useFeaturedListings } from '@/hooks/useListings'
+import { useFeaturedListings, useListings } from '@/hooks/useListings'
+import { useProjects } from '@/hooks/useProjects'
 import { useState } from 'react'
 
 const categories = [
@@ -21,8 +22,15 @@ const trustBadges = [
 
 export function HomePage() {
   const navigate = useNavigate()
-  const { data: featured, isLoading } = useFeaturedListings()
+  const { data: featured, isLoading: featuredLoading } = useFeaturedListings()
+  const { data: allListings, isLoading: listingsLoading } = useListings()
+  const { data: allProjects, isLoading: projectsLoading } = useProjects()
+
   const [searchQuery, setSearchQuery] = useState('')
+  
+  const recentListings = allListings?.slice(0, 8) || []
+  const recentProjects = allProjects?.slice(0, 4) || []
+
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -103,7 +111,59 @@ export function HomePage() {
               View All <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <PropertyGrid listings={featured ?? []} loading={isLoading} emptyTitle="No featured properties yet" />
+          <PropertyGrid listings={featured ?? []} loading={featuredLoading} emptyTitle="No featured properties yet" />
+        </div>
+      </section>
+
+      {/* New Developments (Projects) */}
+      <section className="bg-white py-12">
+        <div className="container-app">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">New Developments</h2>
+          </div>
+          {projectsLoading ? (
+            <div className="text-center text-gray-500">Loading projects...</div>
+          ) : recentProjects.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {recentProjects.map(project => (
+                <Link key={project.id} to={`/project/${project.slug}`} className="card group overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5 flex flex-col justify-between">
+                  <div className="p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-semibold text-gray-900 line-clamp-1 group-hover:text-brand-600">{project.name}</h3>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-1 rounded-full">{project.status.replace(/_/g, ' ')}</span>
+                    </div>
+                    <div className="mb-3 flex items-center gap-1 text-xs text-gray-500">
+                      <Map className="h-3.5 w-3.5" />
+                      <span className="line-clamp-1">{project.locality}, {project.city}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                      <span className="rounded bg-gray-100 px-2 py-0.5">{project.total_units} Units</span>
+                      <span className="rounded bg-gray-100 px-2 py-0.5">{project.total_floors} Floors</span>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 px-4 py-3 border-t text-sm font-medium text-brand-700 flex items-center justify-between">
+                    <span>View Project</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+             <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-xl">No projects available yet.</div>
+          )}
+        </div>
+      </section>
+
+      {/* Recently Added */}
+      <section className="bg-white py-12">
+        <div className="container-app">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Recently Added</h2>
+            <Link to="/search" className="flex items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700">
+              View All <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <PropertyGrid listings={recentListings} loading={listingsLoading} emptyTitle="No properties found" />
         </div>
       </section>
 

@@ -74,12 +74,22 @@ export function ProjectFormPage() {
         await bulkCreateUnits.mutateAsync(units)
       }
 
-      toast(`Project created with ${units.length} units!`, 'success')
+      toast(`Project published with ${units.length} units!`, 'success')
       navigate(`/dashboard/projects/${project.id}/inventory`)
     } catch {
       toast('Failed to create project', 'error')
     }
     setLoading(false)
+  }
+
+  const onFormError = (errors: any) => {
+    console.log('Project Form Errors:', errors)
+    const firstError = Object.values(errors)[0] as any
+    if (firstError?.message) {
+      toast(`Please fix: ${firstError.message}`, 'error')
+    } else {
+      toast('Please fill in all required fields.', 'error')
+    }
   }
 
   return (
@@ -89,7 +99,8 @@ export function ProjectFormPage() {
         <p className="text-sm text-gray-500">Set up a multi-unit development with inventory grid</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit, onFormError)} className="space-y-6">
+
         <div className="rounded-xl border bg-white p-6 space-y-4">
           <h2 className="text-lg font-semibold">Project Details</h2>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -164,7 +175,7 @@ export function ProjectFormPage() {
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={() => navigate('/dashboard/projects')}>Cancel</Button>
-          <Button type="submit" loading={loading}>Create Project ({totalUnits} units)</Button>
+          <Button type="submit" loading={loading}>Publish Project ({totalUnits} units)</Button>
         </div>
       </form>
     </div>
