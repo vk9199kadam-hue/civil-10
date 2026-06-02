@@ -5,10 +5,12 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { projectSchema, type ProjectFormData } from '@/lib/validations/project.schema'
 import { useCreateProject } from '@/hooks/useProjects'
 import { useBulkCreateUnits } from '@/hooks/useUnits'
+import { useUploadMedia } from '@/hooks/useMedia'
 import { useToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { ImageUploader } from '@/components/media/ImageUploader'
 import { PROJECT_TYPES, PROJECT_STATUSES } from '@/lib/constants'
 
 export function ProjectFormPage() {
@@ -16,7 +18,10 @@ export function ProjectFormPage() {
   const { toast } = useToast()
   const createProject = useCreateProject()
   const bulkCreateUnits = useBulkCreateUnits()
+  const uploadMedia = useUploadMedia()
   const [loading, setLoading] = useState(false)
+  const [images, setImages] = useState<File[]>([])
+  const [uploadProgress, setUploadProgress] = useState('')
 
   const [blocks, setBlocks] = useState([{ name: 'A', floors: 5, unitsPerFloor: 4, unitType: '2BHK' }])
 
@@ -54,8 +59,10 @@ export function ProjectFormPage() {
       data.total_floors = Math.max(...blocks.map(b => b.floors))
       data.units_per_floor = blocks[0]?.unitsPerFloor || 4
 
+      // 1. Create the project
       const project = await createProject.mutateAsync(data)
 
+      // 2. Create units
       const units = blocks.flatMap(block =>
         Array.from({ length: block.floors }, (_, floorIdx) =>
           Array.from({ length: block.unitsPerFloor }, (_, unitIdx) => ({
@@ -74,10 +81,29 @@ export function ProjectFormPage() {
         await bulkCreateUnits.mutateAsync(units)
       }
 
+      // 3. Upload images to Cloudinary
+      if (images.length > 0) {
+        for (let i = 0; i < images.length; i++) {
+          setUploadProgress(`Uploading image ${i + 1} of ${images.length}...`)
+          try {
+            await uploadMedia.mutateAsync({
+              file: images[i],
+              projectId: project.id,
+              sortOrder: i,
+              isCover: i === 0,
+            })
+          } catch (imgErr: any) {
+            console.error('Image upload error:', imgErr)
+            toast(`Image ${i + 1} failed to upload: ${imgErr?.message ?? 'Unknown error'}`, 'error')
+          }
+        }
+        setUploadProgress('')
+      }
+
       toast(`Project published with ${units.length} units!`, 'success')
       navigate(`/dashboard/projects/${project.id}/inventory`)
-    } catch {
-      toast('Failed to create project', 'error')
+    } catch (err: any) {
+      toast(err?.message || 'Failed to create project', 'error')
     }
     setLoading(false)
   }
@@ -173,9 +199,31 @@ export function ProjectFormPage() {
           ))}
         </div>
 
+        {/* Image Upload Section */}
+        <div className="rounded-xl border bg-white p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Project Photos</h2>
+            <p className="text-sm text-gray-500 mt-1">Upload images for this project. First image becomes the cover photo.</p>
+          </div>
+          <ImageUploader images={images} onChange={setImages} maxImages={20} />
+        </div>
+
+        {/* Upload progress */}
+        {uploadProgress && (
+          <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+            {uploadProgress}
+          </div>
+        )}
+
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={() => navigate('/dashboard/projects')}>Cancel</Button>
-          <Button type="submit" loading={loading}>Publish Project ({totalUnits} units)</Button>
+          <Button type="submit" loading={loading}>
+            {loading ? (uploadProgress || 'Creating project...') : `Publish Project (${totalUnits} units)`}
+          </Button>
         </div>
       </form>
     </div>
