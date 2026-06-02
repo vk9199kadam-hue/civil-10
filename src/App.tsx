@@ -3,6 +3,8 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { PublicLayout } from '@/components/layout/PublicLayout'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { PageLoader } from '@/components/ui/Spinner'
+import { AdminGuard } from '@/components/auth/AdminGuard'
+import { AuthGuard } from '@/components/auth/AuthGuard'
 
 // Public pages
 const HomePage = lazy(() => import('@/pages/HomePage').then(m => ({ default: m.HomePage })))
@@ -13,6 +15,7 @@ const LoginPage = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m
 const SignupPage = lazy(() => import('@/pages/SignupPage').then(m => ({ default: m.SignupPage })))
 const ProjectsPage = lazy(() => import('@/pages/ProjectsPage').then(m => ({ default: m.ProjectsPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
+const AdminLoginPage = lazy(() => import('@/pages/AdminLoginPage').then(m => ({ default: m.AdminLoginPage })))
 
 // Dashboard pages
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
@@ -41,12 +44,19 @@ const router = createBrowserRouter([
       { path: 'projects', element: <ProjectsPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'signup', element: <SignupPage /> },
+      { path: 'admin-login', element: <AdminLoginPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
+
+  // Dashboard — requires login
   {
     path: 'dashboard',
-    element: <DashboardLayout />,
+    element: (
+      <AuthGuard>
+        <DashboardLayout />
+      </AuthGuard>
+    ),
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'listings', element: <MyListingsPage /> },
@@ -59,9 +69,15 @@ const router = createBrowserRouter([
       { path: 'profile', element: <ProfilePage /> },
     ],
   },
+
+  // Admin — requires admin role
   {
     path: 'admin',
-    element: <DashboardLayout />,
+    element: (
+      <AdminGuard>
+        <DashboardLayout />
+      </AdminGuard>
+    ),
     children: [
       { index: true, element: <AdminDashboardPage /> },
       { path: 'listings', element: <AdminListingsPage /> },

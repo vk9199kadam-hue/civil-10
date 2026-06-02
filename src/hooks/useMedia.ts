@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { collection, addDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore'
-import { storage, db } from '@/lib/firebase'
+import { db } from '@/lib/firebase'
 import { queryKeys } from '@/lib/query-keys'
 import { compressImage } from '@/lib/image-utils'
+import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary'
 import type { MediaItem } from '@/types/listings'
 
 export function useUploadMedia() {
@@ -25,39 +25,39 @@ export function useUploadMedia() {
       sortOrder?: number
       isCover?: boolean
     }) => {
-      let processedFile = file as Blob
+      let processedFile: File | Blob = file
       if (file.type.startsWith('image/') && mediaType === 'image') {
         processedFile = await compressImage(file, 1600, 1)
       }
 
-      const folder = listingId ? 'listings' : projectId ? 'projects' : 'misc'
-      const id = listingId || projectId || 'misc'
-      const fileName = `${folder}/${id}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.webp`
-      
-      // Upload to Firebase Storage
-      const storageRef = ref(storage, fileName)
-      const uploadResult = await uploadBytes(storageRef, processedFile, {
-        contentType: 'image/webp',
-      })
+      // Determine Cloudinary folder
+      const folder = listingId
+        ? `islampur/listings/${listingId}`
+        : projectId
+          ? `islampur/projects/${projectId}`
+          : 'islampur/misc'
 
-      const publicUrl = await getDownloadURL(uploadResult.ref)
+      // Upload to Cloudinary
+      const uploadResult = await uploadToCloudinary(processedFile, folder)
 
-      // Add to Firestore media collection
+      // Store metadata in Firestore (public_url is now a Cloudinary URL)
       const mediaData = {
         listing_id: listingId || null,
         project_id: projectId || null,
-        storage_path: fileName,
-        public_url: publicUrl,
+        storage_path: uploadResult.public_id,   // Cloudinary public_id (used for deletion)
+        public_url: uploadResult.public_url,     // Cloudinary secure_url
         media_type: mediaType,
-        mime_type: 'image/webp',
-        file_size: processedFile.size,
+        mime_type: `image/${uploadResult.format}`,
+        file_size: uploadResult.bytes,
         sort_order: sortOrder,
         is_cover: isCover,
+        width: uploadResult.width,
+        height: uploadResult.height,
         created_at: serverTimestamp(),
       }
 
       const docRef = await addDoc(collection(db, 'media'), mediaData)
-      
+
       return { id: docRef.id, ...mediaData } as unknown as MediaItem
     },
     onSuccess: (_data, vars) => {
@@ -76,11 +76,10 @@ export function useDeleteMedia() {
 
   return useMutation({
     mutationFn: async ({ id, storagePath }: { id: string; storagePath: string }) => {
-      // Delete from Firebase Storage
-      const storageRef = ref(storage, storagePath)
-      await deleteObject(storageRef)
-      
-      // Delete from Firestore
+      // Notify about Cloudinary deletion (client-side signed deletion requires backend)
+      deleteFromCloudinary(storagePath)
+
+      // Always delete metadata from Firestore
       await deleteDoc(doc(db, 'media', id))
     },
     onSuccess: () => {
