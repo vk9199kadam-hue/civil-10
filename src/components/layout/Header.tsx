@@ -68,7 +68,7 @@ export function Header() {
             </div>
           ) : (
             <div className="hidden items-center gap-2 sm:flex">
-              <Link to="/admin"><Button variant="ghost" size="sm" className="text-gray-500">Admin</Button></Link>
+              <Link to="/admin-login"><Button variant="ghost" size="sm" className="text-gray-500">Admin</Button></Link>
               <Link to="/login"><Button variant="ghost" size="sm">Login</Button></Link>
               <Link to="/signup"><Button size="sm">Sign Up</Button></Link>
             </div>
@@ -108,7 +108,7 @@ export function Header() {
               </>
             ) : (
               <>
-                <Link to="/admin" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                <Link to="/admin-login" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                   <LayoutDashboard className="h-4 w-4" /> Admin Portal
                 </Link>
                 <Link to="/login" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
