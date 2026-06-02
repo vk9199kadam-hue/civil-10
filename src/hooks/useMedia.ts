@@ -3,7 +3,7 @@ import { collection, addDoc, doc, deleteDoc, serverTimestamp } from 'firebase/fi
 import { db } from '@/lib/firebase'
 import { queryKeys } from '@/lib/query-keys'
 import { compressImage } from '@/lib/image-utils'
-import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary'
+import { uploadToImageKit, deleteFromImageKit } from '@/lib/imagekit'
 import type { MediaItem } from '@/types/listings'
 
 export function useUploadMedia() {
@@ -37,15 +37,15 @@ export function useUploadMedia() {
           ? `islampur/projects/${projectId}`
           : 'islampur/misc'
 
-      // Upload to Cloudinary
-      const uploadResult = await uploadToCloudinary(processedFile, folder)
+      // Upload to ImageKit
+      const uploadResult = await uploadToImageKit(processedFile, folder)
 
-      // Store metadata in Firestore (public_url is now a Cloudinary URL)
+      // Store metadata in Firestore (public_url is now an ImageKit URL)
       const mediaData = {
         listing_id: listingId || null,
         project_id: projectId || null,
-        storage_path: uploadResult.public_id,   // Cloudinary public_id (used for deletion)
-        public_url: uploadResult.public_url,     // Cloudinary secure_url
+        storage_path: uploadResult.public_id,   // ImageKit fileId (used for deletion)
+        public_url: uploadResult.public_url,     // ImageKit secure_url
         media_type: mediaType,
         mime_type: `image/${uploadResult.format}`,
         file_size: uploadResult.bytes,
@@ -76,8 +76,8 @@ export function useDeleteMedia() {
 
   return useMutation({
     mutationFn: async ({ id, storagePath }: { id: string; storagePath: string }) => {
-      // Notify about Cloudinary deletion (client-side signed deletion requires backend)
-      deleteFromCloudinary(storagePath)
+      // Notify about ImageKit deletion (client-side signed deletion requires backend)
+      deleteFromImageKit(storagePath)
 
       // Always delete metadata from Firestore
       await deleteDoc(doc(db, 'media', id))

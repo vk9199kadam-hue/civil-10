@@ -71,24 +71,18 @@ export function ListingFormPage() {
         }
       }, 5000)
 
-      const listing = await Promise.race([
-        createListing.mutateAsync(data),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase took too long to save! Check Database Rules.')), 8000))
-      ]) as any;
+      const listing = await createListing.mutateAsync(data) as any;
 
       // Try to upload images, but don't fail the whole property if storage is disabled
       if (images.length > 0) {
         try {
           for (let i = 0; i < images.length; i++) {
-            await Promise.race([
-              uploadMedia.mutateAsync({
-                file: images[i],
-                listingId: listing.id,
-                sortOrder: i,
-                isCover: i === 0,
-              }),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('Storage upload blocked.')), 3000))
-            ])
+            await uploadMedia.mutateAsync({
+              file: images[i],
+              listingId: listing.id,
+              sortOrder: i,
+              isCover: i === 0,
+            })
           }
         } catch (mediaErr: any) {
           console.error("Storage Error:", mediaErr);
